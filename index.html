@@ -304,7 +304,24 @@
             font-style: italic;
         }
         
-        /* ===== BANNER ===== */
+        /* ===== BANNER ===== */<!-- Banner -->
+<div id="siteBanner">
+    <img id="bannerImage" class="banner-image" alt="Banner personalizado">
+    <div class="banner-placeholder">
+        <h2>lixdyrandomstuff</h2>
+        <p>✨ Mi blog ✨</p>
+        
+        <!-- ✨ BOTONES SEPARADOS para el banner ✨ -->
+        <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
+            <button onclick="editBanner()" class="btn btn-primary" id="editBannerBtn">
+                🖼️ Cambiar Banner
+            </button>
+            <button onclick="removeBanner()" class="btn" style="background: #8B5A6D; color: white;">
+                ❌ Remover
+            </button>
+        </div>
+    </div>
+</div>
         #siteBanner {
             width: 100%;
             max-width: 900px;
@@ -1143,7 +1160,7 @@
             </button>
             <p style="font-size: 13px; color: var(--text-secondary); text-align: center; margin-top: 20px;">
                 ✨ Easter egg activado: escribe "lixdy" o toca tu avatar 3 veces rápido ✨
-            </p>
+            </p</script>
         </div>
     </div>
 
@@ -1152,7 +1169,7 @@
         <img id="bannerImage" class="banner-image" alt="Banner personalizado">
         <div class="banner-placeholder">
             <h2>lixdyrandomstuff</h2>
-            <p>✨ Mi espacio personal en la web ✨</p>
+            <p>✨ Mi vlog ✨</p>
             <!-- ✨✨✨ CAMBIO IMPORTANTE: display: inline-block en lugar de none ✨✨✨ -->
            <button onclick="editProfile()" class="btn btn-primary" style="margin-top: 10px; display: inline-block;" id="editBannerBtn">
     🔧 Editar Perfil
@@ -1218,9 +1235,34 @@
                 </div>
                 
                 <div class="profile-bio" id="profileBio">
-                    random stuff pq soy un poco weirdo
+                    
                 </div>
-                
+                <div class="profile-info">
+    <div class="profile-name">
+        <span id="profileName">lixdy</span>
+    </div>
+    
+    <!-- ✨ BOTONES para avatar y descripción ✨ -->
+    <div style="margin: 10px 0; display: flex; gap: 10px;">
+        <button onclick="editAvatar()" class="btn" style="
+            background: var(--color-wisteria); color: white; padding: 8px 15px; 
+            border-radius: 20px; border: none; cursor: pointer; font-size: 14px;
+        ">
+            👤 Cambiar Foto
+        </button>
+        <button onclick="editBio()" class="btn" style="
+            background: var(--color-jacarta); color: white; padding: 8px 15px; 
+            border-radius: 20px; border: none; cursor: pointer; font-size: 14px;
+        ">
+            📝 Editar Descripción
+        </button>
+    </div>
+    
+    <div class="profile-bio" id="profileBio">
+        
+    </div>
+    <!-- ... resto del código ... -->
+</div>
                 <div class="profile-stats">
                     <div class="stat">
                         <div class="stat-number" id="statPosts">0</div>
@@ -1542,108 +1584,283 @@ async function cargarBannerYAvatar() {
             }
         });
         
-        // ======================== ✨✨✨ FUNCIONES NUEVAS PARA PERFIL ✨✨✨ ========================
-        // ===== FUNCIONES PARA PERFIL (BANNER Y AVATAR) =====
-        async function cargarPerfilDesdeSupabase() {
-            try {
-                const { data, error } = await supabase
-                    .from('perfil')
-                    .select('*')
-                    .eq('id', 1)
-                    .single();
-                
-                if (error) {
-                    console.log('No hay perfil en Supabase:', error);
-                    return null;
-                }
-                
-                return data;
-                
-            } catch (error) {
-                console.error('Error cargando perfil:', error);
-                return null;
-            }
-        }
+        // ======================== ✨✨✨ FUNCIONES NUEVAS SUPER SIMPLES ✨✨✨ ========================
 
-        async function actualizarPerfilEnSupabase(datos) {
-            try {
-                const { error } = await supabase
-                    .from('perfil')
-                    .update(datos)
-                    .eq('id', 1);
-                
-                if (error) {
-                    // Si no existe, crear
-                    const { error: insertError } = await supabase
-                        .from('perfil')
-                        .insert([{ id: 1, ...datos }]);
-                    
-                    if (insertError) throw insertError;
-                }
-                
-                return true;
-                
-            } catch (error) {
-                console.error('Error actualizando perfil:', error);
-                return false;
-            }
+// 1. EDITAR BANNER (SUBIR ARCHIVO)
+function editBanner() {
+    if (!isOwnerLoggedIn) {
+        showNotification('✨ Escribe "lixdy" o toca el avatar 3 veces', 'info');
+        return;
+    }
+    
+    // Crear input de archivo oculto
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.style.display = 'none';
+    
+    input.onchange = async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        // Validar tamaño
+        if (file.size > 5 * 1024 * 1024) {
+            showNotification('La imagen es muy grande (>5MB)', 'error');
+            return;
         }
-
-        // ===== BANNER Y AVATAR DESDE SUPABASE =====
-        async function cargarBannerYAvatar() {
-            try {
-                console.log('🖼️ Cargando banner y avatar desde Supabase...');
+        
+        showNotification('📤 Subiendo banner...', 'info');
+        
+        try {
+            // Subir a imgbb.com (GRATIS, sin registro)
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            const response = await fetch('https://api.imgbb.com/1/upload?key=7be8434b1e9d1462b6dce88f7cbbcdd9', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                const imageUrl = data.data.url;
                 
-                const perfil = await cargarPerfilDesdeSupabase();
+                // Guardar en Supabase
+                await actualizarPerfilEnSupabase({ banner_url: imageUrl });
                 
-                if (!perfil) {
-                    console.log('ℹ️ Perfil no encontrado en Supabase, usando valores por defecto');
-                    return;
-                }
-                
-                // 1. Cargar BANNER
+                // Actualizar en la página
                 const bannerImage = document.getElementById('bannerImage');
                 const bannerPlaceholder = document.querySelector('.banner-placeholder');
                 
-                if (perfil.banner_url) {
-                    bannerImage.src = perfil.banner_url;
-                    bannerImage.style.display = 'block';
-                    if (bannerPlaceholder) {
-                        bannerPlaceholder.style.display = 'none';
-                    }
-                } else {
-                    bannerImage.style.display = 'none';
-                    if (bannerPlaceholder) {
-                        bannerPlaceholder.style.display = 'block';
-                    }
+                bannerImage.src = imageUrl;
+                bannerImage.style.display = 'block';
+                if (bannerPlaceholder) {
+                    bannerPlaceholder.style.display = 'none';
                 }
                 
-                // 2. Cargar AVATAR
+                showNotification('✅ ¡Banner actualizado!', 'success');
+                
+            } else {
+                showNotification('Error subiendo imagen', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Usa imgbb.com y pega el link manualmente', 'info');
+            
+            // Método alternativo: pedir URL
+            const url = prompt('Pega la URL de tu banner (sube en imgbb.com):');
+            if (url) {
+                await actualizarPerfilEnSupabase({ banner_url: url });
+                
+                const bannerImage = document.getElementById('bannerImage');
+                const bannerPlaceholder = document.querySelector('.banner-placeholder');
+                
+                bannerImage.src = url;
+                bannerImage.style.display = 'block';
+                if (bannerPlaceholder) {
+                    bannerPlaceholder.style.display = 'none';
+                }
+                
+                showNotification('✅ ¡Banner actualizado!', 'success');
+            }
+        }
+    };
+    
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
+}
+
+// 2. REMOVER BANNER
+async function removeBanner() {
+    if (!isOwnerLoggedIn) {
+        showNotification('✨ Escribe "lixdy" o toca el avatar 3 veces', 'info');
+        return;
+    }
+    
+    if (confirm('¿Remover el banner?')) {
+        try {
+            await actualizarPerfilEnSupabase({ banner_url: null });
+            
+            const bannerImage = document.getElementById('bannerImage');
+            const bannerPlaceholder = document.querySelector('.banner-placeholder');
+            
+            bannerImage.style.display = 'none';
+            if (bannerPlaceholder) {
+                bannerPlaceholder.style.display = 'block';
+            }
+            
+            showNotification('✅ Banner removido', 'success');
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        }
+    }
+}
+
+// 3. EDITAR AVATAR (SUBIR ARCHIVO)
+function editAvatar() {
+    if (!isOwnerLoggedIn) {
+        showNotification('✨ Escribe "lixdy" o toca el avatar 3 veces', 'info');
+        return;
+    }
+    
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.style.display = 'none';
+    
+    input.onchange = async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        if (file.size > 2 * 1024 * 1024) {
+            showNotification('La imagen es muy grande (>2MB)', 'error');
+            return;
+        }
+        
+        showNotification('📤 Subiendo foto...', 'info');
+        
+        try {
+            // Método simple: crear URL local primero
+            const localUrl = URL.createObjectURL(file);
+            
+            // Mostrar inmediatamente
+            const avatarImage = document.getElementById('avatarImage');
+            const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+            
+            avatarImage.src = localUrl;
+            avatarImage.style.display = 'block';
+            avatarPlaceholder.style.display = 'none';
+            
+            // Subir a postimages.org
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const response = await fetch('https://postimages.org/json/rr', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === 'ok') {
+                const imageUrl = data.url;
+                
+                // Guardar en Supabase
+                await actualizarPerfilEnSupabase({ foto_url: imageUrl });
+                
+                // Actualizar con URL permanente
+                avatarImage.src = imageUrl;
+                
+                showNotification('✅ ¡Foto actualizada!', 'success');
+                
+            } else {
+                // Si falla, pedir URL manual
+                showNotification('Sube en postimages.org y pega el link', 'info');
+                const url = prompt('Pega la URL de tu foto:');
+                if (url) {
+                    await actualizarPerfilEnSupabase({ foto_url: url });
+                    avatarImage.src = url;
+                    showNotification('✅ ¡Foto actualizada!', 'success');
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error:', error);
+            
+            // Método de emergencia: URL manual
+            const url = prompt('Pega la URL de tu foto (sube en postimages.org):');
+            if (url) {
+                await actualizarPerfilEnSupabase({ foto_url: url });
+                
                 const avatarImage = document.getElementById('avatarImage');
                 const avatarPlaceholder = document.getElementById('avatarPlaceholder');
                 
-                if (perfil.foto_url) {
-                    avatarImage.src = perfil.foto_url;
-                    avatarImage.style.display = 'block';
-                    avatarPlaceholder.style.display = 'none';
-                } else {
-                    avatarImage.style.display = 'none';
-                    avatarPlaceholder.style.display = 'flex';
-                }
+                avatarImage.src = url;
+                avatarImage.style.display = 'block';
+                avatarPlaceholder.style.display = 'none';
                 
-                // 3. Cargar DESCRIPCIÓN
-                const profileBio = document.getElementById('profileBio');
-                if (profileBio && perfil.descripcion) {
-                    profileBio.textContent = perfil.descripcion;
-                }
-                
-                console.log('✅ Banner y avatar cargados desde Supabase');
-                
-            } catch (error) {
-                console.error('❌ Error cargando banner/avatar:', error);
+                showNotification('✅ ¡Foto actualizada!', 'success');
             }
         }
-        // ======================== ✨✨✨ FIN DE FUNCIONES NUEVAS ✨✨✨ ========================
+    };
+    
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
+}
+
+// 4. EDITAR DESCRIPCIÓN
+async function editBio() {
+    if (!isOwnerLoggedIn) {
+        showNotification('✨ Escribe "lixdy" o toca el avatar 3 veces', 'info');
+        return;
+    }
+    
+    const nuevaDescripcion = prompt(
+        'Escribe tu nueva descripción:',
+        document.getElementById('profileBio').textContent
+    );
+    
+    if (nuevaDescripcion !== null) {
+        try {
+            await actualizarPerfilEnSupabase({ descripcion: nuevaDescripcion });
+            document.getElementById('profileBio').textContent = nuevaDescripcion;
+            showNotification('✅ ¡Descripción actualizada!', 'success');
+        } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+        }
+    }
+}
+
+// 5. FUNCIÓN AUXILIAR: subir imagen a servidor gratuito
+async function subirImagenGratis(file, tipo) {
+    let apiUrl, formField;
+    
+    if (tipo === 'banner') {
+        // imgbb.com para banners grandes
+        apiUrl = 'https://api.imgbb.com/1/upload';
+        formField = 'image';
+        // Necesitas una API key gratuita de imgbb.com
+    } else {
+        // postimages.org para avatares
+        apiUrl = 'https://postimages.org/json/rr';
+        formField = 'file';
+    }
+    
+    const formData = new FormData();
+    formData.append(formField, file);
+    
+    const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData
+    });
+    
+    return await response.json();
+}
+
+// 6. SIMPLIFICAR la función editProfile original (por si acaso)
+async function editProfile() {
+    if (!isOwnerLoggedIn) {
+        showNotification('✨ Escribe "lixdy" o toca el avatar 3 veces', 'info');
+        return;
+    }
+    
+    const opcion = prompt(
+        '¿Qué quieres editar?\n\n' +
+        '1. 🖼️ Banner (imagen grande)\n' +
+        '2. 👤 Foto de perfil\n' +
+        '3. 📝 Descripción\n\n' +
+        'Escribe el número:'
+    );
+    
+    if (opcion === '1') editBanner();
+    else if (opcion === '2') editAvatar();
+    else if (opcion === '3') editBio();
+}
+// ======================== ✨✨✨ FIN DE FUNCIONES NUEVAS ✨✨✨ =========================
         
         // ===== EASTER EGG SECRETO =====
         function initSecretEasterEgg() {
@@ -3353,4 +3570,5 @@ function closeEditModal() {
     </script>
 </body>
 </html>
+
 
