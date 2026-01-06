@@ -1154,7 +1154,9 @@
             <h2>lixdyrandomstuff</h2>
             <p>✨ Mi espacio personal en la web ✨</p>
             <!-- ✨✨✨ CAMBIO IMPORTANTE: display: inline-block en lugar de none ✨✨✨ -->
-            <button onclick="editProfile()" class="btn btn-primary" style="margin-top: 10px; display: inline-block;" id="editBannerBtn">
+           <button onclick="editProfile()" class="btn btn-primary" style="margin-top: 10px; display: inline-block;" id="editBannerBtn">
+    🔧 Editar Perfil
+</button>
                 🖼️ Editar Banner
             </button>
         </div>
@@ -1431,8 +1433,82 @@
                 await Promise.all([
                     loadPosts(),
                     loadComments(),
-                    cargarBannerYAvatar()  // ✨✨✨ NUEVO: carga banner y avatar desde Supabase ✨✨✨
-                ]);
+                   cargarBannerYAvatar()  // ✨✨✨ NUEVO: carga banner y avatar desde Supabase ✨✨✨
+                ]);// Función para forzar la carga de imágenes (ARREGLAR problema de caché)
+function cargarImagenConCache(imgElement, url) {
+    if (!url) return;
+    
+    // Agregar timestamp para evitar caché
+    const timestamp = new Date().getTime();
+    const urlConCache = url + (url.includes('?') ? '&' : '?') + 't=' + timestamp;
+    
+    imgElement.onload = function() {
+        console.log('✅ Imagen cargada:', url);
+    };
+    
+    imgElement.onerror = function() {
+        console.error('❌ Error cargando imagen:', url);
+        // Intentar sin timestamp
+        imgElement.src = url;
+    };
+    
+    imgElement.src = urlConCache;
+}
+
+// Modificar la función cargarBannerYAvatar para usar cache
+async function cargarBannerYAvatar() {
+    try {
+        console.log('🖼️ Cargando banner y avatar desde Supabase...');
+        
+        const perfil = await cargarPerfilDesdeSupabase();
+        
+        if (!perfil) {
+            console.log('ℹ️ Perfil no encontrado en Supabase');
+            return;
+        }
+        
+        // 1. Cargar BANNER (con cache fix)
+        const bannerImage = document.getElementById('bannerImage');
+        const bannerPlaceholder = document.querySelector('.banner-placeholder');
+        
+        if (perfil.banner_url) {
+            cargarImagenConCache(bannerImage, perfil.banner_url);
+            bannerImage.style.display = 'block';
+            if (bannerPlaceholder) {
+                bannerPlaceholder.style.display = 'none';
+            }
+        } else {
+            bannerImage.style.display = 'none';
+            if (bannerPlaceholder) {
+                bannerPlaceholder.style.display = 'block';
+            }
+        }
+        
+        // 2. Cargar AVATAR (con cache fix)
+        const avatarImage = document.getElementById('avatarImage');
+        const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+        
+        if (perfil.foto_url) {
+            cargarImagenConCache(avatarImage, perfil.foto_url);
+            avatarImage.style.display = 'block';
+            avatarPlaceholder.style.display = 'none';
+        } else {
+            avatarImage.style.display = 'none';
+            avatarPlaceholder.style.display = 'flex';
+        }
+        
+        // 3. Cargar DESCRIPCIÓN
+        const profileBio = document.getElementById('profileBio');
+        if (profileBio && perfil.descripcion) {
+            profileBio.textContent = perfil.descripcion;
+        }
+        
+        console.log('✅ Perfil cargado');
+        
+    } catch (error) {
+        console.error('❌ Error cargando perfil:', error);
+    }
+}
                 
                 // 10. Actualizar UI
                 updateStats();
@@ -2895,184 +2971,246 @@
         }
         
         // ======================== ✨✨✨ FUNCIÓN EDITPROFILE CORREGIDA ✨✨✨ ========================
-     async function editProfile() {
+async function editProfile() {
+    // Verificar si está logueada
     if (!isOwnerLoggedIn) {
-        showNotification('Inicia sesión para editar el perfil', 'error');
+        showNotification('✨ Pista: escribe "lixdy" o toca tu avatar 3 veces rápido', 'info');
         return;
     }
     
-    // Mostrar un menú simple
-    const opcion = prompt(
-        '¿Qué quieres editar?\n\n' +
-        '1. 🖼️ Banner (imagen grande)\n' +
-        '2. 👤 Foto de perfil\n' +
-        '3. 📝 Descripción\n' +
-        '4. ❌ Remover banner\n' +
-        '5. ❌ Remover foto de perfil\n\n' +
-        'Escribe el número (1-5):'
-    );
+    // Crear un mini modal bonito
+    const modalHTML = `
+        <div id="profileEditModal" style="
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 9999; display: flex;
+            justify-content: center; align-items: center;
+            backdrop-filter: blur(5px);
+        ">
+            <div style="
+                background: var(--bg-container); padding: 30px;
+                border-radius: 15px; max-width: 500px; width: 90%;
+                border: 5px solid var(--accent-purple);
+                box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            ">
+                <h2 style="color: var(--accent-purple); text-align: center; margin-bottom: 25px;">
+                    ✨ Editar Perfil ✨
+                </h2>
+                
+                <div style="margin-bottom: 20px;">
+                    <h3 style="color: var(--color-wisteria); margin-bottom: 10px;">🖼️ Banner</h3>
+                    <input type="text" id="editBannerUrl" placeholder="URL del banner (https://...)" 
+                        style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; margin-bottom: 10px;">
+                    <button onclick="testImage('editBannerUrl')" style="
+                        background: var(--color-wisteria); color: white; border: none;
+                        padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 14px;
+                    ">
+                        🔍 Ver Previa
+                    </button>
+                    <button onclick="removeBanner()" style="
+                        background: #8B5A6D; color: white; border: none;
+                        padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 14px; margin-left: 10px;
+                    ">
+                        ❌ Remover
+                    </button>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <h3 style="color: var(--color-wisteria); margin-bottom: 10px;">👤 Foto de Perfil</h3>
+                    <input type="text" id="editAvatarUrl" placeholder="URL de la foto (https://...)" 
+                        style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; margin-bottom: 10px;">
+                    <button onclick="testImage('editAvatarUrl')" style="
+                        background: var(--color-wisteria); color: white; border: none;
+                        padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 14px;
+                    ">
+                        🔍 Ver Previa
+                    </button>
+                    <button onclick="removeAvatar()" style="
+                        background: #8B5A6D; color: white; border: none;
+                        padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 14px; margin-left: 10px;
+                    ">
+                        ❌ Remover
+                    </button>
+                </div>
+                
+                <div style="margin-bottom: 25px;">
+                    <h3 style="color: var(--color-wisteria); margin-bottom: 10px;">📝 Descripción</h3>
+                    <textarea id="editBio" rows="3" placeholder="Escribe algo sobre ti..." 
+                        style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; font-family: var(--font-body);">
+                        ${document.getElementById('profileBio').textContent}
+                    </textarea>
+                </div>
+                
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button onclick="saveProfileChanges()" style="
+                        background: linear-gradient(45deg, var(--color-jacarta), var(--color-wisteria));
+                        color: white; border: none; padding: 12px 25px; border-radius: 25px;
+                        cursor: pointer; font-weight: bold; font-size: 16px;
+                    ">
+                        💾 Guardar Todo
+                    </button>
+                    <button onclick="closeEditModal()" style="
+                        background: var(--text-secondary); color: white; border: none;
+                        padding: 12px 25px; border-radius: 25px; cursor: pointer; font-weight: bold;
+                    ">
+                        Cancelar
+                    </button>
+                </div>
+                
+                <div style="margin-top: 20px; padding: 15px; background: rgba(63, 42, 82, 0.1); border-radius: 10px;">
+                    <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 5px;">
+                        📌 <strong>Para subir imágenes:</strong>
+                    </p>
+                    <p style="color: var(--text-secondary); font-size: 12px;">
+                        1. Ve a <a href="https://imgbb.com/" target="_blank" style="color: var(--color-lavender);">imgbb.com</a> (banner grande)<br>
+                        2. O <a href="https://postimages.org/" target="_blank" style="color: var(--color-lavender);">postimages.org</a> (foto perfil)<br>
+                        3. Sube tu imagen y copia el enlace directo
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
     
-    if (!opcion) return;
+    // Agregar el modal al body
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+// Función para probar si una imagen carga
+function testImage(inputId) {
+    const input = document.getElementById(inputId);
+    const url = input.value.trim();
     
-    switch(opcion.trim()) {
-        case '1': // Banner
-            const bannerUrl = prompt(
-                'URL de tu banner:\n\n' +
-                '📌 Sube tu imagen en: https://imgbb.com/\n' +
-                '📌 Luego pega el enlace aquí\n\n' +
-                'URL actual: ' + (document.getElementById('bannerImage').src || 'Ninguno')
-            );
-            
-            if (bannerUrl !== null && bannerUrl.trim()) {
-                try {
-                    // Guardar en Supabase
-                    await actualizarPerfilEnSupabase({ banner_url: bannerUrl.trim() });
-                    
-                    // Actualizar en la página
-                    const bannerImage = document.getElementById('bannerImage');
-                    const bannerPlaceholder = document.querySelector('.banner-placeholder');
-                    
-                    bannerImage.src = bannerUrl.trim();
-                    bannerImage.style.display = 'block';
-                    if (bannerPlaceholder) {
-                        bannerPlaceholder.style.display = 'none';
-                    }
-                    
-                    showNotification('✅ Banner actualizado', 'success');
-                } catch (error) {
-                    showNotification('❌ Error: ' + error.message, 'error');
-                }
-            }
-            break;
-            
-        case '2': // Foto de perfil
-            const avatarUrl = prompt(
-                'URL de tu foto de perfil:\n\n' +
-                '📌 Sube tu foto en: https://postimages.org/\n' +
-                '📌 Luego pega el "Direct Link" aquí\n\n' +
-                'URL actual: ' + (document.getElementById('avatarImage').src || 'Ninguna')
-            );
-            
-            if (avatarUrl !== null && avatarUrl.trim()) {
-                try {
-                    // Guardar en Supabase
-                    await actualizarPerfilEnSupabase({ foto_url: avatarUrl.trim() });
-                    
-                    // Actualizar en la página
-                    const avatarImage = document.getElementById('avatarImage');
-                    const avatarPlaceholder = document.getElementById('avatarPlaceholder');
-                    
-                    avatarImage.src = avatarUrl.trim();
-                    avatarImage.style.display = 'block';
-                    avatarPlaceholder.style.display = 'none';
-                    
-                    showNotification('✅ Foto de perfil actualizada', 'success');
-                } catch (error) {
-                    showNotification('❌ Error: ' + error.message, 'error');
-                }
-            }
-            break;
-            
-        case '3': // Descripción
-            const descripcion = prompt(
-                'Tu descripción:\n\n' +
-                'Escribe algo sobre ti...',
-                document.getElementById('profileBio').textContent
-            );
-            
-            if (descripcion !== null) {
-                try {
-                    // Guardar en Supabase
-                    await actualizarPerfilEnSupabase({ descripcion: descripcion });
-                    
-                    // Actualizar en la página
-                    document.getElementById('profileBio').textContent = descripcion;
-                    showNotification('✅ Descripción actualizada', 'success');
-                } catch (error) {
-                    showNotification('❌ Error: ' + error.message, 'error');
-                }
-            }
-            break;
-            
-        case '4': // Remover banner
-            if (confirm('¿Seguro que quieres remover el banner?')) {
-                try {
-                    await actualizarPerfilEnSupabase({ banner_url: null });
-                    
-                    const bannerImage = document.getElementById('bannerImage');
-                    const bannerPlaceholder = document.querySelector('.banner-placeholder');
-                    
-                    bannerImage.style.display = 'none';
-                    if (bannerPlaceholder) {
-                        bannerPlaceholder.style.display = 'block';
-                    }
-                    
-                    showNotification('✅ Banner removido', 'success');
-                } catch (error) {
-                    showNotification('❌ Error: ' + error.message, 'error');
-                }
-            }
-            break;
-            
-        case '5': // Remover foto de perfil
-            if (confirm('¿Seguro que quieres remover tu foto de perfil?')) {
-                try {
-                    await actualizarPerfilEnSupabase({ foto_url: null });
-                    
-                    const avatarImage = document.getElementById('avatarImage');
-                    const avatarPlaceholder = document.getElementById('avatarPlaceholder');
-                    
-                    avatarImage.style.display = 'none';
-                    avatarPlaceholder.style.display = 'flex';
-                    
-                    showNotification('✅ Foto de perfil removida', 'success');
-                } catch (error) {
-                    showNotification('❌ Error: ' + error.message, 'error');
-                }
-            }
-            break;
-            
-        default:
-            showNotification('Opción no válida', 'error');
+    if (!url) {
+        showNotification('Escribe una URL primero', 'error');
+        return;
+    }
+    
+    showNotification('🔍 Probando imagen...', 'info');
+    
+    const img = new Image();
+    img.onload = function() {
+        showNotification('✅ ¡Imagen válida! Se verá así:', 'success');
+        
+        // Mostrar preview
+        const preview = window.open('', '_blank');
+        preview.document.write(`
+            <html>
+                <head><title>Previa de imagen</title></head>
+                <body style="margin: 0; padding: 20px; background: #f0f0f0;">
+                    <h2>Previa de la imagen:</h2>
+                    <img src="${url}" style="max-width: 90%; border: 3px solid #75619D; border-radius: 10px;">
+                    <p>URL: ${url}</p>
+                    <button onclick="window.close()" style="
+                        padding: 10px 20px; background: #75619D; color: white;
+                        border: none; border-radius: 10px; cursor: pointer;
+                    ">Cerrar</button>
+                </body>
+            </html>
+        `);
+    };
+    
+    img.onerror = function() {
+        showNotification('❌ URL inválida o imagen no accesible', 'error');
+        input.style.borderColor = '#ff6b6b';
+    };
+    
+    img.src = url;
+}
+
+// Guardar cambios
+async function saveProfileChanges() {
+    try {
+        const bannerUrl = document.getElementById('editBannerUrl').value.trim();
+        const avatarUrl = document.getElementById('editAvatarUrl').value.trim();
+        const bio = document.getElementById('editBio').value.trim();
+        
+        // Preparar datos para Supabase
+        const updates = {};
+        if (bannerUrl) updates.banner_url = bannerUrl;
+        if (avatarUrl) updates.foto_url = avatarUrl;
+        if (bio) updates.descripcion = bio;
+        
+        // Guardar en Supabase
+        await actualizarPerfilEnSupabase(updates);
+        
+        // Actualizar la página INMEDIATAMENTE
+        if (bannerUrl) {
+            const bannerImage = document.getElementById('bannerImage');
+            const bannerPlaceholder = document.querySelector('.banner-placeholder');
+            bannerImage.src = bannerUrl;
+            bannerImage.style.display = 'block';
+            if (bannerPlaceholder) bannerPlaceholder.style.display = 'none';
+        }
+        
+        if (avatarUrl) {
+            const avatarImage = document.getElementById('avatarImage');
+            const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+            avatarImage.src = avatarUrl;
+            avatarImage.style.display = 'block';
+            avatarPlaceholder.style.display = 'none';
+        }
+        
+        if (bio) {
+            document.getElementById('profileBio').textContent = bio;
+        }
+        
+        // Cerrar modal
+        closeEditModal();
+        
+        showNotification('✨ ¡Perfil actualizado!', 'success');
+        
+    } catch (error) {
+        console.error('Error guardando perfil:', error);
+        showNotification('❌ Error: ' + error.message, 'error');
     }
 }
+
+// Remover banner
+async function removeBanner() {
+    if (confirm('¿Remover el banner?')) {
+        try {
+            await actualizarPerfilEnSupabase({ banner_url: null });
             
-            // 2. Avatar
-            const avatarUrl = prompt('URL de tu foto de perfil (deja vacío para remover, cancela para no cambiar):', '');
-            if (avatarUrl !== null) {
-                const avatarImage = document.getElementById('avatarImage');
-                const avatarPlaceholder = document.getElementById('avatarPlaceholder');
-                
-                if (avatarUrl.trim()) {
-                    // Guardar en Supabase
-                    await actualizarPerfilEnSupabase({ foto_url: avatarUrl.trim() });
-                    
-                    // Actualizar en la página
-                    avatarImage.src = avatarUrl.trim();
-                    avatarImage.style.display = 'block';
-                    avatarPlaceholder.style.display = 'none';
-                    
-                    showNotification('✅ Foto de perfil actualizada', 'success');
-                } else {
-                    // Remover avatar
-                    await actualizarPerfilEnSupabase({ foto_url: null });
-                    avatarImage.style.display = 'none';
-                    avatarPlaceholder.style.display = 'flex';
-                    showNotification('✅ Foto de perfil removida', 'success');
-                }
-            }
+            const bannerImage = document.getElementById('bannerImage');
+            const bannerPlaceholder = document.querySelector('.banner-placeholder');
             
-            // 3. Descripción
-            const descripcion = prompt('Tu descripción:', document.getElementById('profileBio').textContent);
-            if (descripcion !== null) {
-                // Guardar en Supabase
-                await actualizarPerfilEnSupabase({ descripcion: descripcion });
-                
-                // Actualizar en la página
-                document.getElementById('profileBio').textContent = descripcion;
-                showNotification('✅ Descripción actualizada', 'success');
-            }
+            bannerImage.style.display = 'none';
+            if (bannerPlaceholder) bannerPlaceholder.style.display = 'block';
+            
+            document.getElementById('editBannerUrl').value = '';
+            showNotification('✅ Banner removido', 'success');
+        } catch (error) {
+            showNotification('❌ Error: ' + error.message, 'error');
         }
+    }
+}
+
+// Remover avatar
+async function removeAvatar() {
+    if (confirm('¿Remover la foto de perfil?')) {
+        try {
+            await actualizarPerfilEnSupabase({ foto_url: null });
+            
+            const avatarImage = document.getElementById('avatarImage');
+            const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+            
+            avatarImage.style.display = 'none';
+            avatarPlaceholder.style.display = 'flex';
+            
+            document.getElementById('editAvatarUrl').value = '';
+            showNotification('✅ Foto removida', 'success');
+        } catch (error) {
+            showNotification('❌ Error: ' + error.message, 'error');
+        }
+    }
+}
+
+// Cerrar modal
+function closeEditModal() {
+    const modal = document.getElementById('profileEditModal');
+    if (modal) {
+        modal.remove();
+    }
+}
         // ======================== ✨✨✨ FIN DE FUNCIÓN EDITPROFILE ✨✨✨ ========================
         
         function createStars(element) {
@@ -3215,3 +3353,4 @@
     </script>
 </body>
 </html>
+
